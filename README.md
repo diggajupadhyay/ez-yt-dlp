@@ -1,6 +1,6 @@
 # ez-yt-dlp
 
-This project, because I am tired of scratching wiki for an argument to pass when downloading video/audio from [yt-dlp](https://github.com/yt-dlp/yt-dlp "yt-dlp"), tired of typing same flags over and over again, etc. But, why not aliases? Because, I can't afford to update my `.bash_aliases` everytime I change my OS. And, at the end, to feel like I've helped a non tech-savvy friend.
+This project, because I am tired of scratching wiki for an argument to pass when downloading videos/audios using [yt-dlp](https://github.com/yt-dlp/yt-dlp "yt-dlp"), tired of typing same flags over and over again, etc. But, why not aliases? Because, I can't afford to update my `.bash_aliases` everytime I change my OS. And, at the end, to feel like I've helped a non tech-savvy friend.
 
 ## Installation Instruction
 - Download the script to your $HOME/bin directory (make sure it exists): 
