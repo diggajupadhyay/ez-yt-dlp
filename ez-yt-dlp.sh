@@ -1,8 +1,5 @@
 #!/bin/bash
-# This is in very early stage. Let's say this is my hobby project. So, definetely
-# will be updates comming every week, month or year.
 
-clear
 cat << EOF
 Please Select:
 
@@ -14,15 +11,14 @@ Please Select:
 
 EOF
 echo -n "Enter one at a time [1-5]: "
-read -r sel
+read -r sel path
 
 case $sel in
-    1) read -p "Enter URL here: " URL && yt-dlp -o "%(title)s.%(ext)s" $URL ;;
-    2) read -p "Enter URL here: " URL && yt-dlp --extract-audio --audio-format mp3 -o "%(title)s.%(ext)s" $URL ;;
-    3) read -p "Enter URL here: " URL && yt-dlp --yes-playlist -o "%(title)s.%(ext)s" $URL ;;
-    4) read -p "Enter URL here: " URL && yt-dlp --yes-playlist --extract-audio --audio-format mp3 -o "%(title)s.%(ext)s" $URL ;;
+    1) mkdir -pv $HOME/Videos/ez-video/ && cd $HOME/Videos/ez-video/ && read -p "Enter URL here: " URL && yt-dlp -o "%(title)s.%(ext)s" $URL && cd - ;;
+    2) mkdir -pv $HOME/Music/ez-audio/ && cd $HOME/Music/ez-audio/ && read -p "Enter URL here: " URL && yt-dlp --extract-audio --audio-format mp3 -o "%(title)s.%(ext)s" $URL && cd - ;;
+    3) mkdir -pv $HOME/Videos/ez-playlist/ && cd $HOME/Videos/ez-playlist/ && read -p "Enter URL here: " URL && yt-dlp --yes-playlist -o "%(title)s.%(ext)s" $URL && cd - ;;
+    4) mkdir -pv $HOME/Music/ez-playlist/ && cd $HOME/Music/ez-playlist/ && read -p "Enter URL here: " URL && yt-dlp --yes-playlist --extract-audio --audio-format mp3 -o "%(title)s.%(ext)s" $URL && cd - ;;
     5) echo "Quiting now.." ;;
-    *)
-        echo "Invalid input. Exiting.." >&2
-        exit 1
+    *) echo "Invalid input. Exiting.." >&2
+       exit 1
 esac
