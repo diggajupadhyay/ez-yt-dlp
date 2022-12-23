@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Check whether yt-dlp is installed or not. Install if required.
+pacman -Q | grep yt-dlp || sudo pacman -Syu --noconfirm yt-dlp
+
 cat << EOF
 Please Select:
 
