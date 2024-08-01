@@ -3,25 +3,63 @@
 # Check whether yt-dlp is installed or not. Install if required.
 pacman -Q | grep yt-dlp || sudo pacman -Syu --noconfirm yt-dlp
 
-cat << EOF
-Please Select:
+# Main menu offering download options
+while true; do
+    cat <<EOF
+Please choose Media Download Option:
 
-    1. Download Single YouTube Video
-    2. Download Single YouTube Audio
-    3. Download YouTube Video Playlist
-    4. Download YouTube Audio Playlist
-    5. Quit
-
+      v - Download Single Video
+      vp - Download Video Playlist
+      a - Download Single Audio
+      ap - Download Audio Playlist
+      q - Quit
 EOF
-echo -n "Enter one at a time [1-5]: "
-read -r sel path
 
-case $sel in
-    1) mkdir -pv $HOME/Videos/ez-video/ && cd $HOME/Videos/ez-video/ && read -p "Enter URL here: " URL && yt-dlp -o "%(title)s.%(ext)s" $URL && cd - ;;
-    2) mkdir -pv $HOME/Music/ez-audio/ && cd $HOME/Music/ez-audio/ && read -p "Enter URL here: " URL && yt-dlp --extract-audio --audio-format mp3 -o "%(title)s.%(ext)s" $URL && cd - ;;
-    3) mkdir -pv $HOME/Videos/ez-playlist/ && cd $HOME/Videos/ez-playlist/ && read -p "Enter URL here: " URL && yt-dlp --yes-playlist -o "%(title)s.%(ext)s" $URL && cd - ;;
-    4) mkdir -pv $HOME/Music/ez-playlist/ && cd $HOME/Music/ez-playlist/ && read -p "Enter URL here: " URL && yt-dlp --yes-playlist --extract-audio --audio-format mp3 -o "%(title)s.%(ext)s" $URL && cd - ;;
-    5) echo "Quiting now.." ;;
-    *) echo "Invalid input. Exiting.." >&2
-       exit 1
-esac
+    read -p "Enter your choice (v, vp, a, ap, q): " option
+
+    case $option in
+        v)
+            dir="$HOME/Videos"
+            ext=".mp4"
+            yt_options="-f bestvideo+bestaudio"
+            ;;
+        vp)
+            dir="$HOME/Videos"
+            ext=".mp4"
+            yt_options="-f bestvideo+bestaudio --yes-playlist"
+            ;;
+        a)
+            dir="$HOME/Music"
+            ext=".mp3"
+            yt_options="--extract-audio --audio-format mp3 --audio-quality 0"
+            ;;
+        ap)
+            dir="$HOME/Music"
+            ext=".mp3"
+            yt_options="--yes-playlist --extract-audio --audio-format mp3 --audio-quality 0"
+            ;;
+        q)
+            echo "Quitting..."
+            exit 0
+            ;;
+        *)
+            echo "Invalid input. Please try again."
+            ;;
+    esac
+
+    # Download media
+    read -p "Enter the YouTube/Facebook/Odysee URL: " url
+
+    # Save directory with optional user input
+    read -p "Enter Save directory ($dir): " save_dir
+    save_dir=${save_dir:-"$dir"}
+
+    # Download media with yt-dlp
+    mkdir -p "$save_dir"
+    yt-dlp $yt_options -o "$save_dir/%(title)s$ext" "$url"
+    if [[ $? -eq 0 ]]; then
+        echo "Download successful! File saved to $save_dir"
+    else
+        echo "Download failed. Please check your URL and try again."
+    fi
+done
