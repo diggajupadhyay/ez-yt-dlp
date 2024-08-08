@@ -1,61 +1,78 @@
 import os
 import subprocess
-import platform
+import sys
 
-# Determine the user's operating system
-os_name = platform.system()
+def check_installation():
+    try:
+        # Check if yt-dlp is installed
+        subprocess.run(['pacman', '-Qq'], check=True, text=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print("yt-dlp not found. Installing...")
+        try:
+            subprocess.run(['sudo', 'pacman', '-Syu', '--noconfirm', 'yt-dlp'], check=True)
+        except subprocess.CalledProcessError:
+            print("Failed to install yt-dlp. Exiting.")
+            sys.exit(1)
 
-# Check if pip is installed
-pip_installed = False
-try:
-    subprocess.run(['python', '-m', 'pip', 'install', '--upgrade', 'pip'], check=True)
-    pip_installed = True
-except:
-    pass
+def download_media(option, url, save_dir):
+    # Define options based on user choice
+    if option == 'v':
+        ext = '.mp4'
+        yt_options = '-f bestvideo+bestaudio'
+    elif option == 'vp':
+        ext = '.mp4'
+        yt_options = '-f bestvideo+bestaudio --yes-playlist'
+    elif option == 'a':
+        ext = '.mp3'
+        yt_options = '--extract-audio --audio-format mp3 --audio-quality 0'
+    elif option == 'ap':
+        ext = '.mp3'
+        yt_options = '--yes-playlist --extract-audio --audio-format mp3 --audio-quality 0'
+    else:
+        print("Invalid option selected.")
+        return
+    
+    # Ensure the save directory exists
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Build the command
+    command = ['yt-dlp', yt_options, '-o', f"{save_dir}/%(title)s{ext}", url]
+    
+    try:
+        subprocess.run(command, check=True)
+        print(f"Download successful! File saved to {save_dir}")
+    except subprocess.CalledProcessError:
+        print("Download failed. Please check your URL and try again.")
 
-if not pip_installed:
-    if os_name == 'Windows':
-        subprocess.run(['powershell', '-Command', 'Invoke-WebRequest -UseBasicParsing https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py'], check=True)
-        subprocess.run(['python', 'get-pip.py', '--user'], check=True)
-        os.environ['PATH'] += f';{os.path.expanduser("~")}\\AppData\\Roaming\\Python\\Python39\\Scripts'
-    elif os_name == 'Linux':
-        subprocess.run(['sudo', 'apt-get', 'install', '-y', 'python3-pip'], check=True)
-    elif os_name == 'Darwin':
-        subprocess.run(['curl', 'https://bootstrap.pypa.io/get-pip.py', '-o', 'get-pip.py'], check=True)
-        subprocess.run(['sudo', 'python3', 'get-pip.py'], check=True)
+def main():
+    check_installation()
+    
+    while True:
+        print("""
+Please choose Media Download Option:
 
-# Install yt-dlp
-subprocess.run(['pip', 'install', '--upgrade', 'yt-dlp'], check=True)
+      v - Download Single Video
+      vp - Download Video Playlist
+      a - Download Single Audio
+      ap - Download Audio Playlist
+      q - Quit
+""")
+        
+        option = input("Enter your choice (v, vp, a, ap, q): ").strip()
+        
+        if option == 'q':
+            print("Quitting...")
+            sys.exit(0)
+        
+        url = input("Enter the YouTube/Facebook/Odysee URL: ").strip()
+        if not url.startswith(('http://', 'https://')):
+            print("Invalid URL. Please enter a valid URL starting with http:// or https://")
+            continue
+        
+        save_dir = input(f"Enter Save directory ($HOME/Videos): ").strip()
+        save_dir = save_dir or os.path.expanduser('~/Videos')
+        
+        download_media(option, url, save_dir)
 
-# Prompt user to paste the YouTube/Facebook/Odysee URL
-url = input("Enter the YouTube/Facebook/Odysee URL to download: ")
-
-# Ask user whether they are downloading video, video playlist, audio, and audio playlist
-media_type = input("Enter media type (v, vp, a, ap): ")
-
-if media_type == "v":
-    media_format = "--format mp4"
-    ext = ".mp4"
-elif media_type == "vp":
-    media_format = "--format mp4 --yes-playlist"
-    ext = ".mp4"
-elif media_type == "a":
-    media_format = "--extract-audio --audio-format mp3 --audio-quality 0"
-    ext = ".mp3"
-elif media_type == "ap":
-    media_format = "--extract-audio --audio-format mp3 --audio-quality 0 --yes-playlist"
-    ext = ".mp3"
-else:
-    raise Exception("Unsupported media type")
-
-# Ask where they want to save the download. The default directory should be Music and Video under user's directory consecutively
-default_dir = os.path.join(os.path.expanduser('~'), 'Music' if media_type.startswith('a') else 'Videos')
-dir_path = input(f"Enter save directory (default: {default_dir}): ")
-if not dir_path:
-    dir_path = default_dir
-
-# Download media using yt-dlp
-subprocess.run(f'yt-dlp {media_format} -o "{dir_path}/%(title)s{ext}" {url}', shell=True, check=True)
-
-# Prompt user that the download has completed and is in a certain directory
-print(f"Download complete. The file is at {dir_path}")
+if __name__ == "__main__":
+    main()
