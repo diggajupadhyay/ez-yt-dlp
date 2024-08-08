@@ -1,7 +1,13 @@
 #!/bin/bash
 
 # Check whether yt-dlp is installed or not. Install if required.
-pacman -Q | grep yt-dlp || sudo pacman -Syu --noconfirm yt-dlp
+if ! pacman -Qq | grep -q yt-dlp; then
+    echo "yt-dlp not found. Installing..."
+    if ! sudo pacman -Syu --noconfirm yt-dlp; then
+        echo "Failed to install yt-dlp. Exiting."
+        exit 1
+    fi
+fi
 
 # Main menu offering download options
 while true; do
@@ -44,11 +50,16 @@ EOF
             ;;
         *)
             echo "Invalid input. Please try again."
+            continue
             ;;
     esac
 
     # Download media
     read -p "Enter the YouTube/Facebook/Odysee URL: " url
+    if [[ ! $url =~ ^https?:// ]]; then
+        echo "Invalid URL. Please enter a valid URL starting with http:// or https://"
+        continue
+    fi
 
     # Save directory with optional user input
     read -p "Enter Save directory ($dir): " save_dir
