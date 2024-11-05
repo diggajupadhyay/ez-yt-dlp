@@ -1,76 +1,257 @@
 #!/bin/bash
 
-# Check whether yt-dlp is installed or not. Install if required.
-if ! pacman -Qq | grep -q yt-dlp; then
-    echo "yt-dlp not found. Installing..."
-    if ! sudo pacman -Syu --noconfirm yt-dlp; then
-        echo "Failed to install yt-dlp. Exiting."
+# Script version
+VERSION="1.0.0"
+
+# Terminal colors
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[0;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# Default directories
+readonly DEFAULT_VIDEO_DIR="$HOME/Videos"
+readonly DEFAULT_AUDIO_DIR="$HOME/Music"
+
+# Function to print colored messages
+print_message() {
+    local color=$1
+    local message=$2
+    echo -e "${color}${message}${NC}"
+}
+
+# Function to print banner
+print_banner() {
+    clear
+    echo "=================================="
+    echo "   EZ YT-DLP v${VERSION}"
+    echo "=================================="
+    echo
+}
+
+# Function to check if a directory is writable
+check_directory() {
+    local dir=$1
+    if [[ ! -d "$dir" ]]; then
+        read -p "Directory '$dir' doesn't exist. Create it? (y/n): " create_dir
+        if [[ $create_dir =~ ^[Yy]$ ]]; then
+            mkdir -p "$dir" || { print_message "$RED" "Error: Failed to create directory"; return 1; }
+        else
+            return 1
+        fi
+    fi
+
+    if [[ ! -w "$dir" ]]; then
+        print_message "$RED" "Error: Directory '$dir' is not writable"
+        return 1
+    fi
+    return 0
+}
+
+# Function to detect and install yt-dlp
+install_yt_dlp() {
+    local package_managers=("pacman" "apt" "dnf" "zypper")
+    local installed=false
+
+    print_message "$BLUE" "Checking for yt-dlp installation..."
+
+    for pm in "${package_managers[@]}"; do
+        if command -v "$pm" &> /dev/null; then
+            case $pm in
+                "pacman")
+                    if ! pacman -Qq | grep -q yt-dlp; then
+                        print_message "$YELLOW" "Installing yt-dlp with pacman..."
+                        sudo pacman -Syu --noconfirm yt-dlp && installed=true
+                    else
+                        installed=true
+                    fi
+                    ;;
+                "apt")
+                    if ! dpkg -l | grep -q yt-dlp; then
+                        print_message "$YELLOW" "Installing yt-dlp with apt..."
+                        sudo apt update && sudo apt install -y yt-dlp && installed=true
+                    else
+                        installed=true
+                    fi
+                    ;;
+                "dnf")
+                    if ! dnf list installed | grep -q yt-dlp; then
+                        print_message "$YELLOW" "Installing yt-dlp with dnf..."
+                        sudo dnf install -y yt-dlp && installed=true
+                    else
+                        installed=true
+                    fi
+                    ;;
+                "zypper")
+                    if ! zypper se --installed-only | grep -q yt-dlp; then
+                        print_message "$YELLOW" "Installing yt-dlp with zypper..."
+                        sudo zypper install -y yt-dlp && installed=true
+                    else
+                        installed=true
+                    fi
+                    ;;
+            esac
+            break
+        fi
+    done
+
+    if ! $installed; then
+        print_message "$RED" "No supported package manager found. Please install yt-dlp manually."
         exit 1
     fi
-fi
 
-# Main menu offering download options
-while true; do
-    cat <<EOF
-Please choose Media Download Option:
+    print_message "$GREEN" "yt-dlp is ready to use!"
+}
 
-      v - Download Single Video
-      vp - Download Video Playlist
-      a - Download Single Audio
-      ap - Download Audio Playlist
-      q - Quit
+# Function to display help
+show_help() {
+    cat << EOF
+Media Download Options:
+    v  - Download Single Video (Best quality)
+    vp - Download Video Playlist (Best quality)
+    a  - Download Single Audio (MP3 format)
+    ap - Download Audio Playlist (MP3 format)
+    q  - Quit the program
+    h  - Show this help message
+
+Supported Platforms:
+    - YouTube
+    - PeerTube
+    - Odysee
+
+Usage Tips:
+    - URLs must start with http:// or https://
+    - You can specify a custom save directory
+    - Default video directory: ${DEFAULT_VIDEO_DIR}
+    - Default audio directory: ${DEFAULT_AUDIO_DIR}
+
+Press Enter to continue...
+EOF
+    read
+}
+
+# Function to validate URL
+validate_url() {
+    local url=$1
+    if [[ ! $url =~ ^https?:// ]]; then
+        print_message "$RED" "Invalid URL. Please enter a valid URL starting with http:// or https://"
+        return 1
+    fi
+    return 0
+}
+
+# Function to get save directory
+get_save_directory() {
+    local default_dir=$1
+    local save_dir
+
+    while true; do
+        read -p "Enter save directory [$default_dir]: " save_dir
+        save_dir=${save_dir:-"$default_dir"}
+
+        if check_directory "$save_dir"; then
+            echo "$save_dir"
+            return 0
+        fi
+
+        read -p "Try another directory? (y/n): " retry
+        if [[ ! $retry =~ ^[Yy]$ ]]; then
+            return 1
+        fi
+    done
+}
+
+# Main program loop
+main() {
+    # Check for yt-dlp installation
+    install_yt_dlp
+
+    while true; do
+        print_banner
+
+        cat << EOF
+Please choose a download option:
+    [v]  - Single Video
+    [vp] - Video Playlist
+    [a]  - Single Audio
+    [ap] - Audio Playlist
+    [q]  - Quit
+    [h]  - Help
 EOF
 
-    read -p "Enter your choice (v, vp, a, ap, q): " option
+        read -p "Enter your choice: " option
 
-    case $option in
-        v)
-            dir="$HOME/Videos"
-            ext=".mp4"
-            yt_options="-f bestvideo+bestaudio"
-            ;;
-        vp)
-            dir="$HOME/Videos"
-            ext=".mp4"
-            yt_options="-f bestvideo+bestaudio --yes-playlist"
-            ;;
-        a)
-            dir="$HOME/Music"
-            ext=".mp3"
-            yt_options="--extract-audio --audio-format mp3 --audio-quality 0"
-            ;;
-        ap)
-            dir="$HOME/Music"
-            ext=".mp3"
-            yt_options="--yes-playlist --extract-audio --audio-format mp3 --audio-quality 0"
-            ;;
-        q)
-            echo "Quitting..."
-            exit 0
-            ;;
-        *)
-            echo "Invalid input. Please try again."
+        case $option in
+            v)
+                dir="$DEFAULT_VIDEO_DIR"
+                ext=".mp4"
+                yt_options="-f bestvideo+bestaudio --merge-output-format mp4"
+                ;;
+            vp)
+                dir="$DEFAULT_VIDEO_DIR"
+                ext=".mp4"
+                yt_options="-f bestvideo+bestaudio --merge-output-format mp4 --yes-playlist"
+                ;;
+            a)
+                dir="$DEFAULT_AUDIO_DIR"
+                ext=".mp3"
+                yt_options="--extract-audio --audio-format mp3 --audio-quality 0"
+                ;;
+            ap)
+                dir="$DEFAULT_AUDIO_DIR"
+                ext=".mp3"
+                yt_options="--yes-playlist --extract-audio --audio-format mp3 --audio-quality 0"
+                ;;
+            q)
+                print_message "$GREEN" "Thank you for using Media Downloader!"
+                exit 0
+                ;;
+            h)
+                show_help
+                continue
+                ;;
+            *)
+                print_message "$RED" "Invalid option. Please try again."
+                sleep 1
+                continue
+                ;;
+        esac
+
+        # Get and validate URL
+        while true; do
+            read -p "Enter the URL: " url
+            if validate_url "$url"; then
+                break
+            fi
+        done
+
+        # Get save directory
+        save_dir=$(get_save_directory "$dir")
+        if [[ $? -ne 0 ]]; then
+            print_message "$RED" "Directory selection cancelled. Returning to main menu..."
+            sleep 2
             continue
-            ;;
-    esac
+        fi
 
-    # Download media
-    read -p "Enter the YouTube/Facebook/Odysee URL: " url
-    if [[ ! $url =~ ^https?:// ]]; then
-        echo "Invalid URL. Please enter a valid URL starting with http:// or https://"
-        continue
-    fi
+        # Download media
+        print_message "$YELLOW" "Starting download..."
+        print_message "$BLUE" "Save location: $save_dir"
 
-    # Save directory with optional user input
-    read -p "Enter Save directory ($dir): " save_dir
-    save_dir=${save_dir:-"$dir"}
+        yt-dlp $yt_options \
+            -o "$save_dir/%(title)s$ext" \
+            --progress-template "download-title:%(info.id)s-%(progress.downloaded_bytes)s" \
+            "$url"
 
-    # Download media with yt-dlp
-    mkdir -p "$save_dir"
-    yt-dlp $yt_options -o "$save_dir/%(title)s$ext" "$url"
-    if [[ $? -eq 0 ]]; then
-        echo "Download successful! File saved to $save_dir"
-    else
-        echo "Download failed. Please check your URL and try again."
-    fi
-done
+        if [[ $? -eq 0 ]]; then
+            print_message "$GREEN" "Download completed successfully!"
+        else
+            print_message "$RED" "Download failed. Please check the URL and try again."
+        fi
+
+        read -p "Press Enter to continue..."
+    done
+}
+
+# Start the program
+main
