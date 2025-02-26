@@ -56,49 +56,75 @@ install_yt_dlp() {
 
     print_message "$BLUE" "Checking for yt-dlp installation..."
 
+    # Check if yt-dlp is installed via package manager
     for pm in "${package_managers[@]}"; do
         if command -v "$pm" &> /dev/null; then
             case $pm in
                 "pacman")
-                    if ! pacman -Qq | grep -q yt-dlp; then
-                        print_message "$YELLOW" "Installing yt-dlp with pacman..."
-                        sudo pacman -Syu --noconfirm yt-dlp && installed=true
-                    else
+                    if pacman -Qq | grep -q yt-dlp; then
                         installed=true
                     fi
                     ;;
                 "apt")
-                    if ! dpkg -l | grep -q yt-dlp; then
-                        print_message "$YELLOW" "Installing yt-dlp with apt..."
-                        sudo apt update && sudo apt install -y yt-dlp && installed=true
-                    else
+                    if dpkg -l | grep -q yt-dlp; then
                         installed=true
                     fi
                     ;;
                 "dnf")
-                    if ! dnf list installed | grep -q yt-dlp; then
-                        print_message "$YELLOW" "Installing yt-dlp with dnf..."
-                        sudo dnf install -y yt-dlp && installed=true
-                    else
+                    if dnf list installed | grep -q yt-dlp; then
                         installed=true
                     fi
                     ;;
                 "zypper")
-                    if ! zypper se --installed-only | grep -q yt-dlp; then
-                        print_message "$YELLOW" "Installing yt-dlp with zypper..."
-                        sudo zypper install -y yt-dlp && installed=true
-                    else
+                    if zypper se --installed-only | grep -q yt-dlp; then
                         installed=true
                     fi
                     ;;
             esac
-            break
+            if $installed; then
+                break
+            fi
         fi
     done
 
+    # Check if yt-dlp is installed via pip
+    if ! $installed && command -v pip &> /dev/null; then
+        if pip show yt-dlp &> /dev/null; then
+            installed=true
+        fi
+    fi
+
+    # Check if yt-dlp binary exists in $HOME/bin
+    if ! $installed && [[ -x "$HOME/bin/yt-dlp" ]]; then
+        installed=true
+    fi
+
+    # If not installed, download and install the binary
     if ! $installed; then
-        print_message "$RED" "No supported package manager found. Please install yt-dlp manually."
-        exit 1
+        print_message "$YELLOW" "yt-dlp not found. Installing yt-dlp binary..."
+        mkdir -p "$HOME/bin"
+        curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o "$HOME/bin/yt-dlp"
+        chmod +x "$HOME/bin/yt-dlp"
+
+        # Add $HOME/bin to PATH in .zshrc or .bashrc
+        if [[ -n "$ZSH_VERSION" ]]; then
+            if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.zshrc"; then
+                echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.zshrc"
+                source "$HOME/.zshrc"
+            fi
+        elif [[ -n "$BASH_VERSION" ]]; then
+            if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc"; then
+                echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+                source "$HOME/.bashrc"
+            fi
+        fi
+
+        if [[ -x "$HOME/bin/yt-dlp" ]]; then
+            installed=true
+        else
+            print_message "$RED" "Failed to install yt-dlp binary."
+            exit 1
+        fi
     fi
 
     print_message "$GREEN" "yt-dlp is ready to use!"
