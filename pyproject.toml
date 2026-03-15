@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ez-yt-dlp"
+version = "0.2.1"
+description = "Small wrapper around yt-dlp for common downloads"
+authors = [{ name = "Diggaj Upadhyay" }]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = ["yt-dlp>=2024.0.0"]
+license = "MIT"
+keywords = ["youtube", "download", "video", "audio", "yt-dlp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Video",
+]
+
+[project.scripts]
+ez-yt-dlp = "ez_yt_dlp:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=6.0"]
+
+[tool.setuptools]
+py-modules = ["ez_yt_dlp"]
