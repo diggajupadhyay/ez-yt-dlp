@@ -19,7 +19,7 @@ videos and audio from YouTube and other sites supported by yt-dlp.
 ### From source
 
 ```bash
-# Install dependency (optional if you already have yt-dlp)
+# Install yt-dlp for direct use
 python3 -m pip install --user -r requirements.txt
 
 # Run directly
@@ -29,12 +29,7 @@ python3 ez_yt_dlp.py --help
 python3 -m pip install --user .
 ```
 
-### Make executable (optional)
-
-```bash
-chmod +x bin/ez-yt-dlp
-cp bin/ez-yt-dlp ~/bin/
-```
+Installing the package provides the `ez-yt-dlp` command.
 
 ## Usage
 
@@ -91,6 +86,7 @@ optional arguments:
 ### Run tests
 
 ```bash
+python3 -m pip install -e ".[dev]"
 python3 -m pytest -v
 # or without pytest
 python3 tools/run_tests_no_pytest.py
@@ -109,13 +105,14 @@ ez-yt-dlp/
 
 ## Requirements
 
-- Python 3.8+
-- yt-dlp (auto-installed if missing)
+- Python 3.10+
+- yt-dlp
+- ffmpeg and ffprobe for video merging and audio extraction
 
 ## Release (for maintainers)
 
 ```bash
-# 1. Bump version in pyproject.toml
+# 1. Bump version in pyproject.toml and ez_yt_dlp.py
 
 # 2. Run release script
 ./release.sh
@@ -123,7 +120,7 @@ ez-yt-dlp/
 # 3. Follow prompts to build and upload to PyPI
 ```
 
-Requires: `pip install build twine` (handled by `.venv` setup)
+Requires: `python3 -m pip install -e ".[dev]"` (handled by `.venv` setup)
 
 ## License
 

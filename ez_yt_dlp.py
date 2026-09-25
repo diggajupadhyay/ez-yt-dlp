@@ -7,19 +7,32 @@ This module provides a small, testable wrapper around the external
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
+import shlex
 import shutil
 import subprocess
 import sys
 from typing import List, Optional
 
-__version__ = "0.2.0"
+__version__ = "0.2.2"
+
+
+def resolve_yt_dlp() -> Optional[List[str]]:
+    """Return the available yt-dlp command for the current environment."""
+    if importlib.util.find_spec("yt_dlp") is not None:
+        return [sys.executable, "-m", "yt_dlp"]
+
+    executable = shutil.which("yt-dlp")
+    if executable:
+        return [executable]
+
+    return None
 
 
 def ensure_yt_dlp_installed(allow_install: bool = True) -> bool:
     """Check if yt-dlp is installed, optionally attempt to install it."""
-    exe = shutil.which("yt-dlp")
-    if exe:
+    if resolve_yt_dlp() is not None:
         return True
 
     if not allow_install:
@@ -32,16 +45,28 @@ def ensure_yt_dlp_installed(allow_install: bool = True) -> bool:
             check=True,
             capture_output=True,
         )
-    except subprocess.CalledProcessError as e:
+    except (OSError, subprocess.CalledProcessError) as e:
         print(f"Failed to install yt-dlp: {e}")
         return False
 
-    if shutil.which("yt-dlp") is None:
+    if resolve_yt_dlp() is None:
         print("yt-dlp installation failed. Please install manually:")
-        print("  python3 -m pip install --user yt-dlp")
+        print(f"  {sys.executable} -m pip install --user yt-dlp")
         return False
 
     return True
+
+
+def prepare_output_dir(save_dir: str) -> str:
+    """Expand and create the output directory."""
+    save_dir = os.path.expanduser(save_dir)
+    try:
+        os.makedirs(save_dir, exist_ok=True)
+    except OSError as e:
+        raise OSError(
+            f"Unable to create output directory {save_dir!r}: {e}"
+        ) from e
+    return save_dir
 
 
 def build_command(
@@ -52,13 +77,13 @@ def build_command(
     playlist: bool = False,
     output_template: str = "%(title)s.%(ext)s",
     extra_opts: Optional[List[str]] = None,
+    yt_dlp_command: Optional[List[str]] = None,
 ) -> List[str]:
     """Build yt-dlp command line for the given options."""
     if mode not in ("video", "audio"):
         raise ValueError("mode must be 'video' or 'audio'")
 
-    os.makedirs(save_dir, exist_ok=True)
-
+    save_dir = os.path.expanduser(save_dir)
     opts: List[str] = []
 
     if mode == "video":
@@ -79,14 +104,14 @@ def build_command(
         opts += extra_opts
 
     output_path = os.path.join(save_dir, output_template)
-    cmd = ["yt-dlp"] + opts + ["-o", output_path, url]
-    return cmd
+    command = list(yt_dlp_command or ["yt-dlp"])
+    return command + opts + ["-o", output_path, url]
 
 
 def run_yt_dlp(cmd: List[str], dry_run: bool = False) -> int:
     """Execute yt-dlp command. Returns 0 on success, non-zero on failure."""
     if dry_run:
-        print("DRY-RUN:", " ".join(cmd))
+        print("DRY-RUN:", shlex.join(cmd))
         return 0
 
     try:
@@ -97,17 +122,16 @@ def run_yt_dlp(cmd: List[str], dry_run: bool = False) -> int:
         return 1
     except FileNotFoundError:
         print("Error: yt-dlp not found. Please install it:")
-        print("  python3 -m pip install --user yt-dlp")
+        print(f"  {sys.executable} -m pip install --user yt-dlp")
         return 2
     except KeyboardInterrupt:
         print("\nDownload cancelled by user.")
         return 130
 
 
-def interactive_mode(allow_install: bool = True) -> int:
+def interactive_mode(allow_install: bool = True, dry_run: bool = False) -> int:
     """Run interactive mode with prompts."""
-    if not ensure_yt_dlp_installed(allow_install=allow_install):
-        return 2
+    yt_dlp_command: Optional[List[str]] = None
 
     while True:
         print("""
@@ -134,7 +158,9 @@ Please choose Media Download Option:
             print("Invalid URL. Please enter a valid URL starting with http:// or https://")
             continue
 
-        save_dir = input(f"Enter Save directory [$HOME/Videos]: ").strip() or os.path.expanduser("~/Videos")
+        save_dir = os.path.expanduser(
+            input(f"Enter Save directory [$HOME/Videos]: ").strip() or "~/Videos"
+        )
 
         if option in ("v", "vp"):
             mode = "video"
@@ -142,11 +168,31 @@ Please choose Media Download Option:
             mode = "audio"
 
         playlist = option in ("vp", "ap")
-        cmd = build_command(mode, url, save_dir, playlist=playlist)
+        if yt_dlp_command is None:
+            if not dry_run and not ensure_yt_dlp_installed(allow_install=allow_install):
+                return 2
+            yt_dlp_command = resolve_yt_dlp() or ["yt-dlp"]
 
-        rc = run_yt_dlp(cmd)
+        try:
+            if not dry_run:
+                save_dir = prepare_output_dir(save_dir)
+            cmd = build_command(
+                mode,
+                url,
+                save_dir,
+                playlist=playlist,
+                yt_dlp_command=yt_dlp_command,
+            )
+        except OSError as e:
+            print(f"Error: {e}")
+            continue
+
+        rc = run_yt_dlp(cmd, dry_run=dry_run)
         if rc == 0:
-            print(f"Finished. Files saved to {save_dir}")
+            if dry_run:
+                print("Dry-run complete. No files were downloaded.")
+            else:
+                print(f"Finished. Files saved to {save_dir}")
         elif rc == 130:
             # User cancelled, return to menu
             continue
@@ -223,16 +269,35 @@ def main(argv: Optional[List[str]] = None) -> int:
         return 1
 
     if not args.url:
-        return interactive_mode(allow_install=not args.no_install)
+        return interactive_mode(
+            allow_install=not args.no_install,
+            dry_run=args.dry_run,
+        )
 
     mode = "audio" if args.audio else "video"
     playlist = bool(args.playlist)
     audio_fmt = args.format if args.format else "mp3"
 
-    if not ensure_yt_dlp_installed(allow_install=not args.no_install):
+    if not args.dry_run and not ensure_yt_dlp_installed(allow_install=not args.no_install):
         return 2
 
-    cmd = build_command(mode, args.url, args.output, audio_format=audio_fmt, playlist=playlist)
+    yt_dlp_command = resolve_yt_dlp() or ["yt-dlp"]
+    save_dir = args.output
+    try:
+        if not args.dry_run:
+            save_dir = prepare_output_dir(save_dir)
+        cmd = build_command(
+            mode,
+            args.url,
+            save_dir,
+            audio_format=audio_fmt,
+            playlist=playlist,
+            yt_dlp_command=yt_dlp_command,
+        )
+    except OSError as e:
+        print(f"Error: {e}")
+        return 1
+
     return run_yt_dlp(cmd, dry_run=args.dry_run)
 
 

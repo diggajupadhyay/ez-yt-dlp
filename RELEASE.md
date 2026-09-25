@@ -6,10 +6,11 @@
 
 1. PyPI account: https://pypi.org/account/register/
 2. API token from PyPI (Account Settings → API tokens → Add API token)
+3. Local tools: `python3 -m pip install -e ".[dev]"`
 
 ### Release Steps
 
-1. **Bump version** in `pyproject.toml`:
+1. **Bump version** in `pyproject.toml` and `ez_yt_dlp.py`:
    ```toml
    version = "0.3.0"  # Increment version
    ```
@@ -24,8 +25,14 @@
    # Clean
    rm -rf dist/ build/ *.egg-info/
 
+   # Test
+   python3 -m pytest
+
    # Build
    .venv/bin/python -m build
+
+   # Check package metadata
+   .venv/bin/twine check dist/*
 
    # Upload to PyPI
    .venv/bin/twine upload dist/*

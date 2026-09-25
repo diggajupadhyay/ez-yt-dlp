@@ -8,6 +8,7 @@ dependencies so it can run in minimal environments.
 import io
 import os
 import sys
+import tempfile
 from contextlib import redirect_stdout
 
 # Ensure project root is on sys.path so we can import the top-level module
@@ -36,9 +37,10 @@ def test_parse_args_defaults():
 
 
 def test_build_command_audio():
-    cmd = build_command("audio", "https://example.com/v", "/tmp", audio_format="mp3", playlist=False)
-    if "--extract-audio" not in cmd or "--audio-format" not in cmd:
-        fail("build_command audio missing expected flags")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        cmd = build_command("audio", "https://example.com/v", tmpdir, audio_format="mp3", playlist=False)
+        if "--extract-audio" not in cmd or "--audio-format" not in cmd:
+            fail("build_command audio missing expected flags")
     ok("build_command audio")
 
 
