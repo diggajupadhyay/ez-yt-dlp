@@ -15,7 +15,11 @@ import subprocess
 import sys
 from typing import List, Optional
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
+
+
+def _print_error(message: str) -> None:
+    print(message, file=sys.stderr)
 
 
 def resolve_yt_dlp() -> Optional[List[str]]:
@@ -36,22 +40,32 @@ def ensure_yt_dlp_installed(allow_install: bool = True) -> bool:
         return True
 
     if not allow_install:
+        _print_error("yt-dlp not found. Install it manually:")
+        _print_error(f"  {sys.executable} -m pip install --user yt-dlp")
         return False
 
-    print("yt-dlp not found. Attempting to install via pip...")
+    _print_error("yt-dlp not found. Attempting to install via pip...")
     try:
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "--user", "yt-dlp"],
             check=True,
             capture_output=True,
         )
-    except (OSError, subprocess.CalledProcessError) as e:
-        print(f"Failed to install yt-dlp: {e}")
+    except subprocess.CalledProcessError as e:
+        _print_error(f"Failed to install yt-dlp: {e}")
+        details = e.stderr or e.stdout or ""
+        if isinstance(details, bytes):
+            details = details.decode(errors="replace")
+        for line in details.strip().splitlines()[-5:]:
+            _print_error(f"  {line}")
+        return False
+    except OSError as e:
+        _print_error(f"Failed to install yt-dlp: {e}")
         return False
 
     if resolve_yt_dlp() is None:
-        print("yt-dlp installation failed. Please install manually:")
-        print(f"  {sys.executable} -m pip install --user yt-dlp")
+        _print_error("yt-dlp installation failed. Please install manually:")
+        _print_error(f"  {sys.executable} -m pip install --user yt-dlp")
         return False
 
     return True
@@ -118,19 +132,27 @@ def run_yt_dlp(cmd: List[str], dry_run: bool = False) -> int:
         subprocess.run(cmd, check=True)
         return 0
     except subprocess.CalledProcessError as e:
-        print(f"Download failed: {e}")
+        _print_error(f"Download failed: {e}")
         return 1
     except FileNotFoundError:
-        print("Error: yt-dlp not found. Please install it:")
-        print(f"  {sys.executable} -m pip install --user yt-dlp")
+        _print_error("Error: yt-dlp not found. Please install it:")
+        _print_error(f"  {sys.executable} -m pip install --user yt-dlp")
         return 2
     except KeyboardInterrupt:
-        print("\nDownload cancelled by user.")
+        _print_error("\nDownload cancelled by user.")
         return 130
 
 
 def interactive_mode(allow_install: bool = True, dry_run: bool = False) -> int:
     """Run interactive mode with prompts."""
+    try:
+        return _interactive_loop(allow_install, dry_run)
+    except (EOFError, KeyboardInterrupt):
+        _print_error("\nCancelled.")
+        return 130
+
+
+def _interactive_loop(allow_install: bool, dry_run: bool) -> int:
     yt_dlp_command: Optional[List[str]] = None
 
     while True:
@@ -184,7 +206,7 @@ Please choose Media Download Option:
                 yt_dlp_command=yt_dlp_command,
             )
         except OSError as e:
-            print(f"Error: {e}")
+            _print_error(f"Error: {e}")
             continue
 
         rc = run_yt_dlp(cmd, dry_run=dry_run)
@@ -197,7 +219,7 @@ Please choose Media Download Option:
             # User cancelled, return to menu
             continue
         else:
-            print("Download failed. Please check your URL and try again.")
+            _print_error("Download failed. Please check your URL and try again.")
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -265,7 +287,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     # Validate --format is only used with --audio
     if args.format and not args.audio:
-        print("Error: --format is only valid with --audio")
+        _print_error("Error: --format is only valid with --audio")
         return 1
 
     if not args.url:
@@ -295,15 +317,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             yt_dlp_command=yt_dlp_command,
         )
     except OSError as e:
-        print(f"Error: {e}")
+        _print_error(f"Error: {e}")
         return 1
 
     return run_yt_dlp(cmd, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except KeyboardInterrupt:
-        print("\nCancelled by user.")
-        raise SystemExit(130)
+    raise SystemExit(main())

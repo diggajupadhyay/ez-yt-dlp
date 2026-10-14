@@ -16,6 +16,13 @@ videos and audio from YouTube and other sites supported by yt-dlp.
 
 ## Install
 
+### From PyPI
+
+```bash
+python3 -m pip install --user ez-yt-dlp
+ez-yt-dlp --help
+```
+
 ### From source
 
 ```bash
@@ -63,22 +70,41 @@ ez-yt-dlp --dry-run --audio "https://..."
 ez-yt-dlp --no-install "https://..."
 ```
 
+### Interactive mode keys
+
+- `v` / `vp` — download a video or video playlist
+- `a` / `ap` — extract audio from a track or playlist
+- `q` — quit
+
+### Exit codes
+
+- `0` — success or user quit
+- `1` — invalid arguments or output path
+- `2` — yt-dlp is unavailable
+- `130` — cancelled by the user
+
 ### Options
 
-```
-positional arguments:
-  url                   URL to download (if omitted, interactive mode starts)
+```text
+usage: ez-yt-dlp [-h] [--video | --audio] [--playlist] [--output OUTPUT]
+                 [--format FORMAT] [--dry-run] [--no-install] [--version]
+                 [url]
 
-optional arguments:
-  -h, --help            Show help message
-  -v, --video           Download video (default)
-  -a, --audio           Extract audio
-  -p, --playlist        Download entire playlist
-  -o, --output DIR      Save directory (default: ~/Videos)
-  -f, --format FMT      Audio format with --audio (e.g., mp3, m4a)
-  --dry-run             Print command without executing
-  --no-install          Don't auto-install yt-dlp
-  --version             Show version and exit
+positional arguments:
+  url                  URL to download (if omitted, interactive mode is
+                       started)
+
+options:
+  -h, --help           show this help message and exit
+  --video, -v          Download video (default)
+  --audio, -a          Extract audio
+  --playlist, -p       Allow playlists (if omitted single item is assumed)
+  --output, -o OUTPUT  Save directory (default: $HOME/Videos)
+  --format, -f FORMAT  Audio format when extracting audio (e.g. mp3, m4a).
+                       Only valid with --audio
+  --dry-run            Print the command instead of executing it
+  --no-install         Do not attempt to auto-install yt-dlp if missing
+  --version            Print version and exit
 ```
 
 ## Development
@@ -96,11 +122,15 @@ python3 tools/run_tests_no_pytest.py
 
 ```
 ez-yt-dlp/
-├── ez_yt_dlp.py        # Main module
-├── bin/ez-yt-dlp       # Executable wrapper
-├── tests/test_cli.py   # Test suite
-├── pyproject.toml      # Package config
-└── README.md           # This file
+├── ez_yt_dlp.py             # Main module
+├── bin/ez-yt-dlp            # Checkout launcher
+├── tests/test_cli.py        # Test suite
+├── tools/                   # Lightweight test runner
+├── .github/workflows/       # CI
+├── pyproject.toml           # Package config
+├── release.sh               # Release automation
+├── RELEASE.md               # Release guide
+└── README.md                # This file
 ```
 
 ## Requirements
@@ -120,7 +150,7 @@ ez-yt-dlp/
 # 3. Follow prompts to build and upload to PyPI
 ```
 
-Requires: `python3 -m pip install -e ".[dev]"` (handled by `.venv` setup)
+Requires: `python3 -m pip install -e ".[dev]"`. Set `PYTHON_BIN` to override the release interpreter.
 
 ## License
 

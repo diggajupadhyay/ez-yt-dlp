@@ -20,6 +20,8 @@
    ./release.sh
    ```
 
+   The script uses `.venv/bin/python` when available; set `PYTHON_BIN` to use another interpreter.
+
 3. **Or manual build/upload**:
    ```bash
    # Clean
@@ -29,13 +31,13 @@
    python3 -m pytest
 
    # Build
-   .venv/bin/python -m build
+   python3 -m build
 
    # Check package metadata
-   .venv/bin/twine check dist/*
+   python3 -m twine check dist/*
 
    # Upload to PyPI
-   .venv/bin/twine upload dist/*
+   python3 -m twine upload dist/*
    ```
 
 4. **Verify on PyPI**: https://pypi.org/project/ez-yt-dlp/
@@ -58,12 +60,12 @@ TestPyPI doesn't have an API for deletion. To remove your test upload:
 
 ```bash
 # Build
-.venv/bin/python -m build
+python3 -m build
 
 # Install locally to test
-.venv/bin/pip install .
+python3 -m pip install .
 
 # Test the CLI
-.venv/bin/ez-yt-dlp --version
-.venv/bin/ez-yt-dlp --help
+ez-yt-dlp --version
+ez-yt-dlp --help
 ```

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ez-yt-dlp"
-version = "0.2.2"
+version = "0.2.3"
 description = "Small wrapper around yt-dlp for common downloads"
 authors = [{ name = "Diggaj Upadhyay" }]
 readme = "README.md"
@@ -22,14 +22,25 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Video",
 ]
+
+[project.urls]
+Homepage = "https://github.com/diggajupadhyay/ez-yt-dlp"
+Repository = "https://github.com/diggajupadhyay/ez-yt-dlp"
+Issues = "https://github.com/diggajupadhyay/ez-yt-dlp/issues"
+Changelog = "https://github.com/diggajupadhyay/ez-yt-dlp/blob/main/RELEASE.md"
 
 [project.scripts]
 ez-yt-dlp = "ez_yt_dlp:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=6.0", "build>=1.0", "twine>=5.0"]
+dev = ["pytest>=7.0", "build>=1.0", "twine>=5.0"]
 
 [tool.setuptools]
 py-modules = ["ez_yt_dlp"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

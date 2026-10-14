@@ -1,6 +1,8 @@
 """Tests for ez_yt_dlp module."""
 import os
+import re
 import subprocess
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
@@ -16,6 +18,21 @@ from ez_yt_dlp import (
     main,
     __version__,
 )
+
+
+class TestPackageMetadata:
+    """Tests for package metadata consistency."""
+
+    def test_version_matches_pyproject(self):
+        """Test the source and package versions agree."""
+        pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+        match = re.search(
+            r'^version = "([^"]+)"$',
+            pyproject.read_text(),
+            re.MULTILINE,
+        )
+        assert match is not None
+        assert match.group(1) == __version__
 
 
 class TestParseArgs:
@@ -229,7 +246,7 @@ class TestRunYtDlp:
             rc = run_yt_dlp(cmd)
         assert rc != 0
         captured = capsys.readouterr()
-        assert "Download failed" in captured.err or "Download failed" in captured.out
+        assert "Download failed" in captured.err
 
     def test_run_yt_dlp_not_found(self, capsys):
         """Test FileNotFoundError handling."""
@@ -239,7 +256,7 @@ class TestRunYtDlp:
             rc = run_yt_dlp(cmd)
         assert rc == 2
         captured = capsys.readouterr()
-        assert "yt-dlp not found" in captured.out
+        assert "yt-dlp not found" in captured.err
 
 
 class TestResolveYtDlp:
@@ -289,11 +306,16 @@ class TestEnsureYtDlpInstalled:
         """Test failed installation via pip."""
         with patch("ez_yt_dlp.resolve_yt_dlp", return_value=None):
             with patch("ez_yt_dlp.subprocess.run") as mock_run:
-                mock_run.side_effect = subprocess.CalledProcessError(1, ["pip"])
+                mock_run.side_effect = subprocess.CalledProcessError(
+                    1,
+                    ["pip"],
+                    stderr=b"externally-managed-environment",
+                )
                 result = ensure_yt_dlp_installed(allow_install=True)
         assert result is False
         captured = capsys.readouterr()
-        assert "Failed to install" in captured.out
+        assert "Failed to install" in captured.err
+        assert "externally-managed-environment" in captured.err
 
     def test_ensure_yt_dlp_install_oserror(self, capsys):
         """Test pip execution errors are handled."""
@@ -302,7 +324,7 @@ class TestEnsureYtDlpInstalled:
                 result = ensure_yt_dlp_installed(allow_install=True)
         assert result is False
         captured = capsys.readouterr()
-        assert "Failed to install" in captured.out
+        assert "Failed to install" in captured.err
 
 
 class TestMain:
@@ -320,7 +342,7 @@ class TestMain:
         rc = main(["--format", "mp3", "https://example.com/v"])
         assert rc == 1
         captured = capsys.readouterr()
-        assert "--format is only valid with --audio" in captured.out
+        assert "--format is only valid with --audio" in captured.err
 
     def test_main_no_url_interactive(self):
         """Test no URL starts interactive mode."""
@@ -345,9 +367,11 @@ class TestMain:
 
     def test_main_with_url_no_yt_dlp(self, capsys):
         """Test with URL but yt-dlp not installed."""
-        with patch('ez_yt_dlp.ensure_yt_dlp_installed', return_value=False):
-            rc = main(["https://example.com/v"])
-            assert rc == 2
+        with patch("ez_yt_dlp.resolve_yt_dlp", return_value=None):
+            rc = main(["--no-install", "https://example.com/v"])
+        assert rc == 2
+        captured = capsys.readouterr()
+        assert "yt-dlp not found" in captured.err
 
     def test_main_dry_run(self, capsys, tmp_path):
         """Test dry-run mode."""
@@ -375,7 +399,7 @@ class TestMain:
             ])
         assert rc == 1
         captured = capsys.readouterr()
-        assert "Unable to create output directory" in captured.out
+        assert "Unable to create output directory" in captured.err
 
     def test_main_audio_mode(self, capsys, tmp_path):
         """Test audio mode."""
@@ -406,6 +430,20 @@ class TestMain:
 
 class TestInteractiveMode:
     """Tests for interactive mode."""
+
+    @pytest.mark.parametrize("error", [EOFError, KeyboardInterrupt])
+    def test_interactive_mode_cancelled(self, error, capsys):
+        """Test interactive cancellation is handled cleanly."""
+        with patch("ez_yt_dlp.input", side_effect=error):
+            rc = interactive_mode(dry_run=True)
+        assert rc == 130
+        captured = capsys.readouterr()
+        assert "Cancelled" in captured.err
+
+    def test_main_cancelled_interactive(self):
+        """Test the installed entry point handles cancellation."""
+        with patch("ez_yt_dlp.input", side_effect=EOFError):
+            assert main([]) == 130
 
     def test_interactive_mode_dry_run(self, tmp_path, capsys):
         """Test interactive dry-run avoids setup and directory creation."""

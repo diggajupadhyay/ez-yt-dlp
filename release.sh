@@ -4,7 +4,32 @@
 
 set -e
 
-PYTHON_BIN="${PYTHON_BIN:-.venv/bin/python}"
+if [[ -z "${PYTHON_BIN:-}" ]]; then
+    if [[ -x .venv/bin/python ]]; then
+        PYTHON_BIN=".venv/bin/python"
+    else
+        PYTHON_BIN="$(command -v python3 || true)"
+    fi
+fi
+
+if [[ -z "$PYTHON_BIN" ]]; then
+    echo "Could not find a Python interpreter. Set PYTHON_BIN to one."
+    exit 1
+fi
+
+if [[ ! -x "$PYTHON_BIN" ]] && ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    echo "Python interpreter not found: $PYTHON_BIN"
+    exit 1
+fi
+
+for tool in pytest build twine; do
+    if ! "$PYTHON_BIN" -c "import $tool" >/dev/null 2>&1; then
+        echo "Missing $tool. Install release dependencies with: python3 -m pip install -e \".[dev]\""
+        exit 1
+    fi
+done
+
+test -x bin/ez-yt-dlp
 
 echo "=== ez-yt-dlp Release Script ==="
 echo ""
@@ -35,6 +60,7 @@ echo ""
 # Show built files
 echo "Built files:"
 ls -lh dist/
+tar -tzf dist/*.tar.gz | grep -q 'tools/run_tests_no_pytest.py'
 echo ""
 
 echo "Checking package metadata..."
